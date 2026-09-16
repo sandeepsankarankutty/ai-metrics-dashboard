@@ -63,7 +63,7 @@ public class ExcelParser {
     private Sheet locateSheet(Workbook workbook, String keyword) {
         for (int index = 0; index < workbook.getNumberOfSheets(); index++) {
             Sheet sheet = workbook.getSheetAt(index);
-            if (sheet.getSheetName().toLowerCase(Locale.ROOT).contains(keyword)) {
+            if (ValidationUtils.normalizeHeader(sheet.getSheetName()).contains(keyword)) {
                 return sheet;
             }
         }
@@ -118,9 +118,10 @@ public class ExcelParser {
                             + ValidationUtils.sumMatching(numericValues, "hours", "designtest")),
                     ValidationUtils.round(firstMatching(numericValues, "numberofstoriesanalyzed", "storiesanalyzed")),
                     ValidationUtils.round(firstMatching(numericValues, "aitotalinteractiontime", "interactiontime")),
+                    ValidationUtils.round(firstMatching(numericValues, "totaltestcasesmonth", "totaltestcasespermonth")),
                     ValidationUtils.round(firstMatching(numericValues, "numberoftestcasesgenerated", "generatedtestcases", "aitestcases")),
                     ValidationUtils.round(ValidationUtils.normalizePercentage(firstMatching(numericValues, "testcasecoverage", "testcasecoveragepct"))),
-                    ValidationUtils.round(firstMatching(numericValues, "automationcandidatesidentified")),
+                    ValidationUtils.round(firstMatching(numericValues, "automationcandidatesidentified", "automationcandidates", "automationcandidatecount")),
                     ValidationUtils.round(firstMatching(numericValues, "reviewdefectsfoundintestcases")),
                     ValidationUtils.round(firstMatching(numericValues, "reviewtimepertestcase")));
             projects.put(normalizeProjectKey(projectName), metrics);

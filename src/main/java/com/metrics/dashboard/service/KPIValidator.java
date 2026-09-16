@@ -13,36 +13,33 @@ public class KPIValidator {
     public List<KPIData> buildPortfolioKpis(List<ProjectMetrics> projects) {
         double totalTests = projects.stream().mapToDouble(ProjectMetrics::totalTestsGenerated).sum();
         double totalAiTests = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
-        double productivityGain = weightedAverage(projects, ProjectMetrics::productivityGain, ProjectMetrics::aiGeneratedCount);
+        double productivityGain = calculatePortfolioGain(projects);
         double reviewReduction = weightedAverage(projects, ProjectMetrics::reviewEffortReduction, ProjectMetrics::aiGeneratedCount);
         double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsGenerated);
         double automation = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage, ProjectMetrics::aiGeneratedCount);
         double adoption = ValidationUtils.safeDivide(totalAiTests, totalTests) * 100.0d;
 
+        KPIStatus productivityStatus = determineStatus(productivityGain, Constants.PRODUCTIVITY_GAIN_TARGET);
+        KPIStatus adoptionStatus = determineStatus(adoption, Constants.AI_ADOPTION_TARGET);
+        KPIStatus reviewStatus = determineStatus(reviewReduction, Constants.REVIEW_REDUCTION_TARGET);
+        KPIStatus coverageStatus = determineStatus(coverage, Constants.REQUIREMENT_COVERAGE_TARGET);
+        KPIStatus automationStatus = determineStatus(automation, Constants.AUTOMATION_READINESS_TARGET);
+
         return List.of(
                 new KPIData("Test Design Productivity Gain", ValidationUtils.round(productivityGain),
-                        Constants.PRODUCTIVITY_GAIN_TARGET,
-                        determineStatus(productivityGain, Constants.PRODUCTIVITY_GAIN_TARGET),
-                        determineStatus(productivityGain, Constants.PRODUCTIVITY_GAIN_TARGET).getCssClass(),
+                        Constants.PRODUCTIVITY_GAIN_TARGET, productivityStatus, productivityStatus.getCssClass(),
                         "Target: +30% annual improvement", "%"),
-                new KPIData("AI Adoption", ValidationUtils.round(adoption), Constants.AI_ADOPTION_TARGET,
-                        determineStatus(adoption, Constants.AI_ADOPTION_TARGET),
-                        determineStatus(adoption, Constants.AI_ADOPTION_TARGET).getCssClass(),
+                new KPIData("AI Adoption", ValidationUtils.round(adoption), Constants.AI_ADOPTION_TARGET, adoptionStatus,
+                        adoptionStatus.getCssClass(),
                         "Target: 60-80% of tests AI-assisted", "%"),
                 new KPIData("Review Effort Reduction", ValidationUtils.round(reviewReduction),
-                        Constants.REVIEW_REDUCTION_TARGET,
-                        determineStatus(reviewReduction, Constants.REVIEW_REDUCTION_TARGET),
-                        determineStatus(reviewReduction, Constants.REVIEW_REDUCTION_TARGET).getCssClass(),
+                        Constants.REVIEW_REDUCTION_TARGET, reviewStatus, reviewStatus.getCssClass(),
                         "Target: 25-40% less review effort", "%"),
                 new KPIData("Requirement Coverage", ValidationUtils.round(coverage),
-                        Constants.REQUIREMENT_COVERAGE_TARGET,
-                        determineStatus(coverage, Constants.REQUIREMENT_COVERAGE_TARGET),
-                        determineStatus(coverage, Constants.REQUIREMENT_COVERAGE_TARGET).getCssClass(),
+                        Constants.REQUIREMENT_COVERAGE_TARGET, coverageStatus, coverageStatus.getCssClass(),
                         "Target: 95% or better coverage", "%"),
                 new KPIData("Automation Readiness", ValidationUtils.round(automation),
-                        Constants.AUTOMATION_READINESS_TARGET,
-                        determineStatus(automation, Constants.AUTOMATION_READINESS_TARGET),
-                        determineStatus(automation, Constants.AUTOMATION_READINESS_TARGET).getCssClass(),
+                        Constants.AUTOMATION_READINESS_TARGET, automationStatus, automationStatus.getCssClass(),
                         "Target: 50% automation-ready candidates", "%"));
     }
 
@@ -68,5 +65,18 @@ public class KPIValidator {
             totalWeight += weight;
         }
         return ValidationUtils.safeDivide(weightedSum, totalWeight);
+    }
+
+    private double calculatePortfolioGain(List<ProjectMetrics> projects) {
+        double totalAiCases = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
+        double baselineComparableHours = projects.stream()
+                .mapToDouble(project -> ValidationUtils.safeDivide(
+                        project.baselineMetrics().estimatedTotalHours(),
+                        project.baselineMetrics().totalTestCasesPerMonth()) * project.aiGeneratedCount())
+                .sum();
+        double aiHours = projects.stream().mapToDouble(project -> project.aiMetrics().estimatedTotalHours()).sum();
+        double beforeRate = ValidationUtils.safeDivide(totalAiCases, baselineComparableHours);
+        double afterRate = ValidationUtils.safeDivide(totalAiCases, aiHours);
+        return beforeRate == 0.0d ? 0.0d : ((afterRate - beforeRate) / beforeRate) * 100.0d;
     }
 }

@@ -9,8 +9,10 @@ import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import java.io.IOException;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Base64;
 import java.util.Map;
 
 /** Renders dashboard HTML using the Freemarker template. */
@@ -30,7 +32,7 @@ public class HTMLGenerator {
         try {
             Template template = configuration.getTemplate("dashboard.ftl");
             Map<String, Object> templateModel = objectMapper.convertValue(dashboardData, new TypeReference<>() { });
-            templateModel.put("chartsJson", toScriptSafeJson(dashboardData.charts()));
+            templateModel.put("chartsJsonBase64", toBase64Json(dashboardData.charts()));
             if (outputPath.getParent() != null) {
                 Files.createDirectories(outputPath.getParent());
             }
@@ -42,10 +44,7 @@ public class HTMLGenerator {
         }
     }
 
-    private String toScriptSafeJson(Object value) throws IOException {
-        return objectMapper.writeValueAsString(value)
-                .replace("</", "<\\/")
-                .replace("\u2028", "\\u2028")
-                .replace("\u2029", "\\u2029");
+    private String toBase64Json(Object value) throws IOException {
+        return Base64.getEncoder().encodeToString(objectMapper.writeValueAsString(value).getBytes(StandardCharsets.UTF_8));
     }
 }

@@ -14,7 +14,7 @@ class MetricsCalculatorTest {
     @Test
     void calculatesExpectedPortfolioMetrics() {
         BaselineMetrics baseline = new BaselineMetrics("CenAccess", "Alex", 1.0d, 4.0d, 30.0d, 96.0d, 5.0d, 10.0d, 25.0d);
-        AIMetrics ai = new AIMetrics("CenAccess", "Alex", 0.5d, 0.3d, 10.0d, 0.8d, 30.0d, 97.0d, 18.0d, 1.0d, 0.03d);
+        AIMetrics ai = new AIMetrics("CenAccess", "Alex", 0.5d, 0.3d, 10.0d, 0.8d, 30.0d, 30.0d, 97.0d, 18.0d, 1.0d, 0.03d);
 
         DashboardData dashboardData = new MetricsCalculator().buildDashboardData(List.of(ProjectMetrics.seed(baseline, ai)));
         ProjectMetrics project = dashboardData.projects().get(0);

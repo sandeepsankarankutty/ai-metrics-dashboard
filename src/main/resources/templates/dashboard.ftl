@@ -268,9 +268,9 @@
     </div>
 </div>
 
-<script id="chart-data" type="application/json">${chartsJson}</script>
 <script>
-const chartData = JSON.parse(document.getElementById('chart-data').textContent);
+const chartDataBase64 = '${chartsJsonBase64}';
+const chartData = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(chartDataBase64), ch => ch.charCodeAt(0))));
 
 function renderBarChart(canvasId, labels, values, options) {
     const canvas = document.getElementById(canvasId);
@@ -361,6 +361,7 @@ renderBarChart('cost-chart', chartData.labels, chartData.costAvoidanceValues, { 
 
 (function enableSorting() {
     const table = document.getElementById('performance-table');
+    if (!table) return;
     const headers = table.querySelectorAll('th[data-sort]');
     headers.forEach((header, index) => {
         header.addEventListener('click', () => {

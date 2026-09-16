@@ -35,13 +35,14 @@ public final class TestWorkbookFactory {
             after.getRow(0).createCell(3).setCellValue("Hours to Create Test Case for Complex Requirement");
             after.getRow(0).createCell(4).setCellValue("Number of stories analyzed");
             after.getRow(0).createCell(5).setCellValue("AI Total Interaction Time");
-            after.getRow(0).createCell(6).setCellValue("Number of test cases generated");
-            after.getRow(0).createCell(7).setCellValue("Test case coverage %");
-            after.getRow(0).createCell(8).setCellValue("Automation candidates identified");
-            after.getRow(0).createCell(9).setCellValue("Review defects found in test cases");
-            after.getRow(0).createCell(10).setCellValue("Review time per test case");
-            writeAfterRow(after, 1, "CenAccess", "Alex", 0.5, 0.3, 45, 0.8, 390, 96, 265, 4, 0.03);
-            writeAfterRow(after, 2, "Guided Flow", "Jordan", 0.5, 0.25, 30, 0.7, 280, 94, 171, 3, 0.03);
+            after.getRow(0).createCell(6).setCellValue("Total test cases / month");
+            after.getRow(0).createCell(7).setCellValue("Number of test cases generated");
+            after.getRow(0).createCell(8).setCellValue("Test case coverage %");
+            after.getRow(0).createCell(9).setCellValue("Automation candidates identified");
+            after.getRow(0).createCell(10).setCellValue("Review defects found in test cases");
+            after.getRow(0).createCell(11).setCellValue("Review time per test case");
+            writeAfterRow(after, 1, "CenAccess", "Alex", 0.5, 0.3, 45, 0.8, 520, 390, 96, 265, 4, 0.03);
+            writeAfterRow(after, 2, "Guided Flow", "Jordan", 0.5, 0.25, 30, 0.7, 410, 280, 94, 171, 3, 0.03);
 
             if (target.getParent() != null) {
                 Files.createDirectories(target.getParent());
@@ -67,18 +68,19 @@ public final class TestWorkbookFactory {
     }
 
     private static void writeAfterRow(Sheet sheet, int rowNum, String name, String lead, double analysisHours,
-            double designHours, double stories, double interactionHours, double generatedTests, double coverage,
-            double automationCandidates, double reviewDefects, double reviewTimePerTestCase) {
+            double designHours, double stories, double interactionHours, double totalTests, double generatedTests,
+            double coverage, double automationCandidates, double reviewDefects, double reviewTimePerTestCase) {
         sheet.createRow(rowNum).createCell(0).setCellValue(name);
         sheet.getRow(rowNum).createCell(1).setCellValue(lead);
         sheet.getRow(rowNum).createCell(2).setCellValue(analysisHours);
         sheet.getRow(rowNum).createCell(3).setCellValue(designHours);
         sheet.getRow(rowNum).createCell(4).setCellValue(stories);
         sheet.getRow(rowNum).createCell(5).setCellValue(interactionHours);
-        sheet.getRow(rowNum).createCell(6).setCellValue(generatedTests);
-        sheet.getRow(rowNum).createCell(7).setCellValue(coverage);
-        sheet.getRow(rowNum).createCell(8).setCellValue(automationCandidates);
-        sheet.getRow(rowNum).createCell(9).setCellValue(reviewDefects);
-        sheet.getRow(rowNum).createCell(10).setCellValue(reviewTimePerTestCase);
+        sheet.getRow(rowNum).createCell(6).setCellValue(totalTests);
+        sheet.getRow(rowNum).createCell(7).setCellValue(generatedTests);
+        sheet.getRow(rowNum).createCell(8).setCellValue(coverage);
+        sheet.getRow(rowNum).createCell(9).setCellValue(automationCandidates);
+        sheet.getRow(rowNum).createCell(10).setCellValue(reviewDefects);
+        sheet.getRow(rowNum).createCell(11).setCellValue(reviewTimePerTestCase);
     }
 }

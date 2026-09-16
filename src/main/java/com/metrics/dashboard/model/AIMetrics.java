@@ -10,6 +10,7 @@ public record AIMetrics(
         double testCaseCreationHours,
         double storiesAnalyzed,
         double aiTotalInteractionTime,
+        double totalTestsGenerated,
         double generatedTestCases,
         double testCaseCoverage,
         double automationCandidatesIdentified,

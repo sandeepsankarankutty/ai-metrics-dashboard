@@ -56,7 +56,9 @@ public class MetricsCalculator {
     private ProjectMetrics calculateProject(ProjectMetrics seed) {
         BaselineMetrics baseline = seed.baselineMetrics();
         AIMetrics ai = seed.aiMetrics();
-        double totalTests = Math.max(baseline.totalTestCasesPerMonth(), ai.generatedTestCases());
+        double totalTests = ai.totalTestsGenerated() > 0.0d
+                ? ai.totalTestsGenerated()
+                : baseline.totalTestCasesPerMonth() + ai.generatedTestCases();
         double baselinePerHour = baseline.productivityPerHour();
         double baselinePerDay = baseline.productivityPerDay();
         double aiPerHour = ai.productivityPerHour();
@@ -116,11 +118,9 @@ public class MetricsCalculator {
 
     private AIProductivitySummary createAiSummary(List<ProjectMetrics> projects) {
         double totalAiCases = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
-        double testsPerHourBefore = weightedAverage(projects, ProjectMetrics::baselineProductivityPerHour,
-                ProjectMetrics::aiGeneratedCount);
-        double testsPerHourAfter = weightedAverage(projects, ProjectMetrics::aiProductivityPerHour,
-                ProjectMetrics::aiGeneratedCount);
-        double productivityGain = weightedAverage(projects, ProjectMetrics::productivityGain, ProjectMetrics::aiGeneratedCount);
+        double testsPerHourBefore = calculatePortfolioBeforeRate(projects);
+        double testsPerHourAfter = calculatePortfolioAfterRate(projects);
+        double productivityGain = calculatePortfolioGain(projects);
         double adoption = weightedAverage(projects, ProjectMetrics::aiAdoptionRate, ProjectMetrics::totalTestsGenerated);
         return new AIProductivitySummary(
                 ValidationUtils.round(totalAiCases),
@@ -135,7 +135,7 @@ public class MetricsCalculator {
         double totalTests = projects.stream().mapToDouble(ProjectMetrics::totalTestsGenerated).sum();
         double aiGenerated = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
         double aiPct = ValidationUtils.safeDivide(aiGenerated, totalTests) * 100.0d;
-        double overallGain = weightedAverage(projects, ProjectMetrics::productivityGain, ProjectMetrics::aiGeneratedCount);
+        double overallGain = calculatePortfolioGain(projects);
         double hoursSaved = projects.stream().mapToDouble(ProjectMetrics::hoursSaved).sum();
         double costAvoidance = projects.stream().mapToDouble(ProjectMetrics::costAvoidance).sum();
         return new ExecutiveSummary(
@@ -201,5 +201,27 @@ public class MetricsCalculator {
             denominator += currentWeight;
         }
         return ValidationUtils.safeDivide(numerator, denominator);
+    }
+
+    private double calculatePortfolioBeforeRate(List<ProjectMetrics> projects) {
+        double totalAiCases = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
+        double baselineComparableHours = projects.stream()
+                .mapToDouble(project -> ValidationUtils.safeDivide(
+                        project.baselineMetrics().estimatedTotalHours(),
+                        project.baselineMetrics().totalTestCasesPerMonth()) * project.aiGeneratedCount())
+                .sum();
+        return ValidationUtils.safeDivide(totalAiCases, baselineComparableHours);
+    }
+
+    private double calculatePortfolioAfterRate(List<ProjectMetrics> projects) {
+        double totalAiCases = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
+        double aiHours = projects.stream().mapToDouble(project -> project.aiMetrics().estimatedTotalHours()).sum();
+        return ValidationUtils.safeDivide(totalAiCases, aiHours);
+    }
+
+    private double calculatePortfolioGain(List<ProjectMetrics> projects) {
+        double beforeRate = calculatePortfolioBeforeRate(projects);
+        double afterRate = calculatePortfolioAfterRate(projects);
+        return beforeRate == 0.0d ? 0.0d : ((afterRate - beforeRate) / beforeRate) * 100.0d;
     }
 }
