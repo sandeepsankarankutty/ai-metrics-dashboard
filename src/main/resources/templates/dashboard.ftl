@@ -246,15 +246,15 @@
             </div>
             <div>
                 <div class="metric-label">Productivity Trend</div>
-                <div class="summary-value ${governanceSummary.productivityTrend >= 0?string('trend-up','trend-down')}">${governanceSummary.productivityTrend >= 0?string('▲ Improving','▼ Watchlist')}</div>
+                <div class="summary-value ${(governanceSummary.productivityTrend >= 0)?then('trend-up','trend-down')}">${(governanceSummary.productivityTrend >= 0)?then('▲ Improving','▼ Watchlist')}</div>
             </div>
             <div>
                 <div class="metric-label">Coverage Trend</div>
-                <div class="summary-value ${governanceSummary.coverageTrend >= 0?string('trend-up','trend-down')}">${governanceSummary.coverageTrend >= 0?string('▲ Healthy','▼ Needs action')}</div>
+                <div class="summary-value ${(governanceSummary.coverageTrend >= 0)?then('trend-up','trend-down')}">${(governanceSummary.coverageTrend >= 0)?then('▲ Healthy','▼ Needs action')}</div>
             </div>
             <div>
                 <div class="metric-label">Review Trend</div>
-                <div class="summary-value ${governanceSummary.reviewTrend >= 0?string('trend-up','trend-down')}">${governanceSummary.reviewTrend >= 0?string('▲ Efficient','▼ High effort')}</div>
+                <div class="summary-value ${(governanceSummary.reviewTrend >= 0)?then('trend-up','trend-down')}">${(governanceSummary.reviewTrend >= 0)?then('▲ Efficient','▼ High effort')}</div>
             </div>
         </div>
     </div>
@@ -269,7 +269,7 @@
 </div>
 
 <script>
-const chartData = ${chartsJson?no_esc};
+const chartData = JSON.parse('${chartsJson?js_string}');
 
 function renderBarChart(canvasId, labels, values, options) {
     const canvas = document.getElementById(canvasId);

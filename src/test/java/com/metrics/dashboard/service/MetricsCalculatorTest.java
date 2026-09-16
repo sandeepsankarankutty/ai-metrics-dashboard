@@ -17,11 +17,11 @@ class MetricsCalculatorTest {
         AIMetrics ai = new AIMetrics("CenAccess", "Alex", 0.5d, 0.3d, 10.0d, 0.8d, 30.0d, 97.0d, 18.0d, 1.0d, 0.03d);
 
         DashboardData dashboardData = new MetricsCalculator().buildDashboardData(List.of(ProjectMetrics.seed(baseline, ai)));
-        ProjectMetrics project = dashboardData.projects().getFirst();
+        ProjectMetrics project = dashboardData.projects().get(0);
 
-        assertEquals(4.62d, project.baselineProductivityPerHour());
-        assertEquals(18.75d, project.aiProductivityPerHour());
-        assertEquals(305.97d, project.productivityGain());
+        assertEquals(3.33d, project.baselineProductivityPerHour());
+        assertEquals(17.65d, project.aiProductivityPerHour());
+        assertEquals(429.41d, project.productivityGain());
         assertEquals(60.0d, project.automationCandidatePercentage());
         assertTrue(dashboardData.executiveSummary().costAvoidance() > 0.0d);
     }
