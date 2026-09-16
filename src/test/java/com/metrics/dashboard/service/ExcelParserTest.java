@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.metrics.dashboard.exception.ExcelParsingException;
 import com.metrics.dashboard.model.ProjectMetrics;
 import com.metrics.dashboard.support.TestWorkbookFactory;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -61,31 +62,20 @@ class ExcelParserTest {
 
     @Test
     void matchesProjectsCaseInsensitivelyAcrossSheets() throws Exception {
-        Path workbook = Files.createTempFile("metrics-case", ".xlsx");
-        try (XSSFWorkbook xssfWorkbook = new XSSFWorkbook(); OutputStream outputStream = Files.newOutputStream(workbook)) {
-            var before = xssfWorkbook.createSheet("Before AI");
-            before.createRow(0).createCell(0).setCellValue("Project Name");
-            before.getRow(0).createCell(1).setCellValue("Lead");
-            before.getRow(0).createCell(2).setCellValue("Total test cases / month");
-            before.createRow(1).createCell(0).setCellValue("CenAccess");
-            before.getRow(1).createCell(1).setCellValue("Alex");
-            before.getRow(1).createCell(2).setCellValue(30);
-
-            var after = xssfWorkbook.createSheet("After AI");
-            after.createRow(0).createCell(0).setCellValue("Project Name");
-            after.getRow(0).createCell(1).setCellValue("Lead");
-            after.getRow(0).createCell(2).setCellValue("Number of test cases generated");
-            after.createRow(1).createCell(0).setCellValue("cenaccess");
-            after.getRow(1).createCell(1).setCellValue("Alex");
-            after.getRow(1).createCell(2).setCellValue(25);
+        Path workbook = TestWorkbookFactory.writeSampleWorkbook(Files.createTempFile("metrics-case", ".xlsx"));
+        try (InputStream inputStream = Files.newInputStream(workbook);
+                XSSFWorkbook xssfWorkbook = new XSSFWorkbook(inputStream)) {
+            xssfWorkbook.getSheet("After AI").getRow(1).getCell(0).setCellValue("cenaccess");
+            try (OutputStream outputStream = Files.newOutputStream(workbook)) {
             xssfWorkbook.write(outputStream);
+            }
         }
 
         List<ProjectMetrics> projects = new ExcelParser().parse(workbook);
 
-        assertEquals(1, projects.size());
+        assertEquals(2, projects.size());
         assertEquals("CenAccess", projects.get(0).projectName());
-        assertEquals(25.0d, projects.get(0).aiMetrics().generatedTestCases());
+        assertEquals(390.0d, projects.get(0).aiMetrics().generatedTestCases());
     }
 
     @Test

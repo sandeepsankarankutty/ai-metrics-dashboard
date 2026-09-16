@@ -219,7 +219,7 @@
             <tbody>
             <#list projects as project>
                 <tr>
-                    <td>${project.projectName}</td>
+                    <td>${project.projectName?html}</td>
                     <td>${project.aiMetrics.storiesAnalyzed?string["0.##"]}</td>
                     <td>${project.totalTestsGenerated?string["0.##"]}</td>
                     <td>${project.aiGeneratedCount?string["0.##"]}</td>
@@ -269,7 +269,7 @@
 </div>
 
 <script>
-const chartDataBase64 = '${chartsJsonBase64}';
+const chartDataBase64 = "${chartsJsonBase64?js_string}";
 const chartData = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(chartDataBase64), ch => ch.charCodeAt(0))));
 
 function renderBarChart(canvasId, labels, values, options) {

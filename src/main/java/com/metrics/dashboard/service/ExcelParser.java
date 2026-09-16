@@ -74,9 +74,10 @@ public class ExcelParser {
         Map<String, Integer> headers = readHeaders(sheet);
         validateRequiredHeaders(headers, sheet.getSheetName());
         Map<String, BaselineMetrics> projects = new LinkedHashMap<>();
+        int scanWidth = headers.values().stream().mapToInt(Integer::intValue).max().orElse(-1) + 1;
         for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
             Row row = sheet.getRow(rowIndex);
-            if (row == null || isRowBlank(row, headers.size())) {
+            if (row == null || isRowBlank(row, scanWidth)) {
                 continue;
             }
             String projectName = readString(row, headers, "projectname");
@@ -102,9 +103,10 @@ public class ExcelParser {
         Map<String, Integer> headers = readHeaders(sheet);
         validateRequiredHeaders(headers, sheet.getSheetName());
         Map<String, AIMetrics> projects = new LinkedHashMap<>();
+        int scanWidth = headers.values().stream().mapToInt(Integer::intValue).max().orElse(-1) + 1;
         for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
             Row row = sheet.getRow(rowIndex);
-            if (row == null || isRowBlank(row, headers.size())) {
+            if (row == null || isRowBlank(row, scanWidth)) {
                 continue;
             }
             String projectName = readString(row, headers, "projectname");
@@ -135,8 +137,11 @@ public class ExcelParser {
             throw new ExcelParsingException("Sheet '" + sheet.getSheetName() + "' is missing a header row.");
         }
         Map<String, Integer> headers = new LinkedHashMap<>();
-        for (Cell cell : headerRow) {
-            headers.put(ValidationUtils.normalizeHeader(formatter.formatCellValue(cell)), cell.getColumnIndex());
+        for (int index = 0; index < headerRow.getLastCellNum(); index++) {
+            String normalizedHeader = ValidationUtils.normalizeHeader(formatter.formatCellValue(headerRow.getCell(index)));
+            if (!normalizedHeader.isBlank()) {
+                headers.put(normalizedHeader, index);
+            }
         }
         return headers;
     }
