@@ -13,7 +13,7 @@
         <maven.compiler.release>17</maven.compiler.release>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <poi.version>5.4.1</poi.version>
-        <jackson.version>2.20.0</jackson.version>
+        <jackson.version>2.21.4</jackson.version>
         <freemarker.version>2.3.34</freemarker.version>
         <picocli.version>4.7.7</picocli.version>
         <slf4j.version>2.0.17</slf4j.version>
