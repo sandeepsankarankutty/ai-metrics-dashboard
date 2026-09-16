@@ -23,6 +23,6 @@ class DashboardGeneratorTest {
         assertEquals(0, exitCode);
         assertTrue(html.contains("AI Productivity Dashboard"));
         assertTrue(html.contains("CenAccess"));
-        assertTrue(html.contains("Executive Summary") || html.contains("Total Stories"));
+        assertTrue(html.contains("Total Projects"));
     }
 }

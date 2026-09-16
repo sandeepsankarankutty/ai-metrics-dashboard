@@ -6,28 +6,48 @@ import com.metrics.dashboard.util.ValidationUtils;
 public record AIMetrics(
         String projectName,
         String lead,
-        double analysisHours,
-        double testCaseCreationHours,
-        double storiesAnalyzed,
+        double storiesAnalyzedComplex,
+        double storiesAnalyzedHigh,
+        double storiesAnalyzedMedium,
+        double storiesAnalyzedLower,
         double aiTotalInteractionTime,
-        double totalTestsGenerated,
-        double generatedTestCases,
-        double testCaseCoverage,
-        double automationCandidatesIdentified,
+        double testCasesGeneratedComplex,
+        double testCasesGeneratedHigh,
+        double testCasesGeneratedMedium,
+        double testCasesGeneratedLower,
+        double totalTestCasesGenerated,
+        double coveragePercentage,
+        double automationCandidates,
         double reviewDefectsFound,
-        double reviewTimePerTestCase) {
+        double reviewTimePerTestCase,
+        double reworkPercentage) {
+
+    public double storiesAnalyzed() {
+        return storiesAnalyzedComplex + storiesAnalyzedHigh + storiesAnalyzedMedium + storiesAnalyzedLower;
+    }
+
+    public double generatedTestCases() {
+        double byBand = testCasesGeneratedComplex + testCasesGeneratedHigh + testCasesGeneratedMedium + testCasesGeneratedLower;
+        return totalTestCasesGenerated > 0.0d ? totalTestCasesGenerated : byBand;
+    }
+
+    public double reviewEffortAfterHours() {
+        return generatedTestCases() * reviewTimePerTestCase;
+    }
 
     public double estimatedTotalHours() {
-        double detailedHours = analysisHours + testCaseCreationHours + (reviewTimePerTestCase * generatedTestCases);
-        double interactionHours = aiTotalInteractionTime + (reviewTimePerTestCase * generatedTestCases);
-        return Math.max(detailedHours, interactionHours);
+        return aiTotalInteractionTime + reviewEffortAfterHours();
+    }
+
+    public double totalAiHours() {
+        return estimatedTotalHours();
     }
 
     public double productivityPerHour() {
-        return ValidationUtils.safeDivide(generatedTestCases, estimatedTotalHours());
+        return ValidationUtils.safeDivide(generatedTestCases(), totalAiHours());
     }
 
-    public double automationCandidatePercentage() {
-        return ValidationUtils.safeDivide(automationCandidatesIdentified, generatedTestCases) * 100.0d;
+    public double defectDensity() {
+        return ValidationUtils.safeDivide(reviewDefectsFound, generatedTestCases());
     }
 }

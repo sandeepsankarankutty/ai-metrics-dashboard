@@ -11,12 +11,12 @@ import java.util.List;
 public class KPIValidator {
     /** Builds the portfolio KPI set. */
     public List<KPIData> buildPortfolioKpis(List<ProjectMetrics> projects) {
-        double totalTests = projects.stream().mapToDouble(ProjectMetrics::totalTestsGenerated).sum();
+        double totalTests = projects.stream().mapToDouble(ProjectMetrics::totalTestsBefore).sum();
         double totalAiTests = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
         double productivityGain = calculatePortfolioGain(projects);
         double reviewReduction = weightedAverage(projects, ProjectMetrics::reviewEffortReduction, ProjectMetrics::aiGeneratedCount);
-        double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsGenerated);
-        double automation = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage, ProjectMetrics::aiGeneratedCount);
+        double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsBefore);
+        double automation = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage, ProjectMetrics::totalTestsBefore);
         double adoption = ValidationUtils.safeDivide(totalAiTests, totalTests) * 100.0d;
 
         KPIStatus productivityStatus = determineStatus(productivityGain, Constants.PRODUCTIVITY_GAIN_TARGET);
@@ -29,7 +29,7 @@ public class KPIValidator {
                 new KPIData("Test Design Productivity Gain", ValidationUtils.round(productivityGain),
                         Constants.PRODUCTIVITY_GAIN_TARGET, productivityStatus, productivityStatus.getCssClass(),
                         "Target: +30% annual improvement", "%"),
-                new KPIData("AI Adoption", ValidationUtils.round(adoption), Constants.AI_ADOPTION_TARGET, adoptionStatus,
+                new KPIData("AI Adoption Rate", ValidationUtils.round(adoption), Constants.AI_ADOPTION_TARGET, adoptionStatus,
                         adoptionStatus.getCssClass(),
                         "Target: 60-80% of tests AI-assisted", "%"),
                 new KPIData("Review Effort Reduction", ValidationUtils.round(reviewReduction),
@@ -71,7 +71,7 @@ public class KPIValidator {
         double totalAiCases = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
         double baselineComparableHours = projects.stream()
                 .mapToDouble(project -> ValidationUtils.safeDivide(
-                        project.baselineMetrics().estimatedTotalHours(),
+                        project.baselineMetrics().totalCoreHours(),
                         project.baselineMetrics().totalTestCasesPerMonth()) * project.aiGeneratedCount())
                 .sum();
         double aiHours = projects.stream().mapToDouble(project -> project.aiMetrics().estimatedTotalHours()).sum();

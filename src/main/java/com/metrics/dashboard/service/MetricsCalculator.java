@@ -56,40 +56,55 @@ public class MetricsCalculator {
     private ProjectMetrics calculateProject(ProjectMetrics seed) {
         BaselineMetrics baseline = seed.baselineMetrics();
         AIMetrics ai = seed.aiMetrics();
-        double totalTests = ai.totalTestsGenerated() > 0.0d
-                ? ai.totalTestsGenerated()
-                : baseline.totalTestCasesPerMonth() + ai.generatedTestCases();
-        double baselinePerHour = baseline.productivityPerHour();
+
+        double baselineCases = baseline.totalTestCasesPerMonth();
+        double aiGenerated = ai.generatedTestCases();
+        double totalAfter = ai.totalTestCasesGenerated() > 0.0d ? ai.totalTestCasesGenerated() : aiGenerated;
+
+        double baselineProductivity = baseline.productivityPerHour();
         double baselinePerDay = baseline.productivityPerDay();
-        double aiPerHour = ai.productivityPerHour();
-        double productivityGain = baselinePerHour == 0.0d ? 0.0d : ((aiPerHour - baselinePerHour) / baselinePerHour) * 100.0d;
-        double adoption = ValidationUtils.safeDivide(ai.generatedTestCases(), totalTests) * 100.0d;
-        double baselineReviewPerCase = baseline.reviewHoursPer100Cases() / 100.0d;
-        double reviewReduction = baselineReviewPerCase == 0.0d
+        double aiProductivity = ai.productivityPerHour();
+        double productivityGain = baselineProductivity == 0.0d
                 ? 0.0d
-                : ((baselineReviewPerCase - ai.reviewTimePerTestCase()) / baselineReviewPerCase) * 100.0d;
-        double coverage = ai.testCaseCoverage() > 0.0d ? ai.testCaseCoverage() : baseline.requirementCoverage();
-        double automation = ai.automationCandidatePercentage();
-        double baselineHoursForAiVolume = ValidationUtils.safeDivide(baseline.estimatedTotalHours(), baseline.totalTestCasesPerMonth())
-                * ai.generatedTestCases();
-        double hoursSaved = Math.max(baselineHoursForAiVolume - ai.estimatedTotalHours(), 0.0d);
+                : ((aiProductivity - baselineProductivity) / baselineProductivity) * 100.0d;
+
+        double reviewBefore = baseline.reviewEffortBeforeHours();
+        double reviewAfter = ai.reviewEffortAfterHours();
+        double reviewReduction = reviewBefore == 0.0d ? 0.0d : ((reviewBefore - reviewAfter) / reviewBefore) * 100.0d;
+
+        double adoption = ValidationUtils.safeDivide(aiGenerated, baselineCases) * 100.0d;
+        double automation = ValidationUtils.safeDivide(ai.automationCandidates(), baselineCases) * 100.0d;
+        double coverage = ai.coveragePercentage() > 0.0d ? ai.coveragePercentage() : baseline.requirementCoveragePercent();
+
+        double baselineHoursForAiVolume = ValidationUtils.safeDivide(baseline.totalCoreHours(), baselineCases) * aiGenerated;
+        double hoursSaved = Math.max(baselineHoursForAiVolume - ai.totalAiHours(), 0.0d);
         double costAvoidance = hoursSaved * Constants.QA_HOURLY_RATE;
+
+        double defectDensityBefore = baseline.defectDensity();
+        double defectDensityAfter = ai.defectDensity();
+        double qualityImprovement = defectDensityBefore == 0.0d
+                ? 0.0d
+                : ((defectDensityBefore - defectDensityAfter) / defectDensityBefore) * 100.0d;
 
         return new ProjectMetrics(
                 seed.projectName(),
                 seed.lead(),
                 baseline,
                 ai,
-                ValidationUtils.round(totalTests),
-                ValidationUtils.round(ai.generatedTestCases()),
-                ValidationUtils.round(baselinePerHour),
+                ValidationUtils.round(baselineCases),
+                ValidationUtils.round(totalAfter),
+                ValidationUtils.round(aiGenerated),
+                ValidationUtils.round(baselineProductivity),
                 ValidationUtils.round(baselinePerDay),
-                ValidationUtils.round(aiPerHour),
+                ValidationUtils.round(aiProductivity),
                 ValidationUtils.round(productivityGain),
                 ValidationUtils.round(adoption),
                 ValidationUtils.round(reviewReduction),
                 ValidationUtils.round(coverage),
                 ValidationUtils.round(automation),
+                ValidationUtils.round(defectDensityBefore),
+                ValidationUtils.round(defectDensityAfter),
+                ValidationUtils.round(qualityImprovement),
                 ValidationUtils.round(hoursSaved),
                 ValidationUtils.round(costAvoidance),
                 determineMaturityLevel(productivityGain));
@@ -99,11 +114,11 @@ public class MetricsCalculator {
         double totalCases = projects.stream().mapToDouble(p -> p.baselineMetrics().totalTestCasesPerMonth()).sum();
         double productivityPerDay = weightedAverage(projects, ProjectMetrics::baselineProductivityPerDay,
                 p -> p.baselineMetrics().totalTestCasesPerMonth());
-        double coverage = weightedAverage(projects, p -> p.baselineMetrics().requirementCoverage(),
+        double coverage = weightedAverage(projects, p -> p.baselineMetrics().requirementCoveragePercent(),
                 p -> p.baselineMetrics().totalTestCasesPerMonth());
         double defectYield = weightedAverage(projects, p -> p.baselineMetrics().defectYield(),
                 p -> p.baselineMetrics().totalTestCasesPerMonth());
-        double reworkRate = weightedAverage(projects, p -> p.baselineMetrics().reworkRate(),
+        double reworkRate = weightedAverage(projects, p -> p.baselineMetrics().reworkPercentage(),
                 p -> p.baselineMetrics().totalTestCasesPerMonth());
         double reviewEffort = weightedAverage(projects, p -> p.baselineMetrics().reviewHoursPer100Cases(),
                 p -> p.baselineMetrics().totalTestCasesPerMonth());
@@ -121,7 +136,8 @@ public class MetricsCalculator {
         double testsPerHourBefore = calculatePortfolioBeforeRate(projects);
         double testsPerHourAfter = calculatePortfolioAfterRate(projects);
         double productivityGain = calculatePortfolioGain(projects);
-        double adoption = weightedAverage(projects, ProjectMetrics::aiAdoptionRate, ProjectMetrics::totalTestsGenerated);
+        double adoption = weightedAverage(projects, ProjectMetrics::aiAdoptionRate,
+                p -> p.totalTestsBefore() > 0.0d ? p.totalTestsBefore() : p.totalTestsGenerated());
         return new AIProductivitySummary(
                 ValidationUtils.round(totalAiCases),
                 ValidationUtils.round(testsPerHourBefore),
@@ -131,30 +147,39 @@ public class MetricsCalculator {
     }
 
     private ExecutiveSummary createExecutiveSummary(List<ProjectMetrics> projects) {
+        double totalProjects = projects.size();
         double totalStories = projects.stream().mapToDouble(p -> p.aiMetrics().storiesAnalyzed()).sum();
-        double totalTests = projects.stream().mapToDouble(ProjectMetrics::totalTestsGenerated).sum();
-        double aiGenerated = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
-        double aiPct = ValidationUtils.safeDivide(aiGenerated, totalTests) * 100.0d;
+        double totalBefore = projects.stream().mapToDouble(ProjectMetrics::totalTestsBefore).sum();
+        double totalAfter = projects.stream().mapToDouble(ProjectMetrics::totalTestsGenerated).sum();
+        double totalAi = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
+        double adoption = ValidationUtils.safeDivide(totalAi, totalBefore) * 100.0d;
         double overallGain = calculatePortfolioGain(projects);
         double hoursSaved = projects.stream().mapToDouble(ProjectMetrics::hoursSaved).sum();
         double costAvoidance = projects.stream().mapToDouble(ProjectMetrics::costAvoidance).sum();
+        double qualityImprovement = weightedAverage(projects, ProjectMetrics::qualityImprovement, ProjectMetrics::aiGeneratedCount);
+        double automationReadiness = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage, ProjectMetrics::totalTestsBefore);
         return new ExecutiveSummary(
+                ValidationUtils.round(totalProjects),
                 ValidationUtils.round(totalStories),
-                ValidationUtils.round(totalTests),
-                ValidationUtils.round(aiGenerated),
-                ValidationUtils.round(aiPct),
+                ValidationUtils.round(totalBefore),
+                ValidationUtils.round(totalAfter),
+                ValidationUtils.round(totalAi),
+                ValidationUtils.round(adoption),
                 ValidationUtils.round(overallGain),
                 ValidationUtils.round(hoursSaved),
-                ValidationUtils.round(costAvoidance));
+                ValidationUtils.round(costAvoidance),
+                ValidationUtils.round(qualityImprovement),
+                ValidationUtils.round(automationReadiness));
     }
 
     private GovernanceSummary createGovernanceSummary(List<ProjectMetrics> projects, ExecutiveSummary executiveSummary) {
-        double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsGenerated);
+        double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsBefore);
         double qualityScore = weightedAverage(projects,
-                p -> (p.requirementCoverage() + p.reviewEffortReduction() + Math.min(100.0d, p.automationCandidatePercentage())) / 3.0d,
-                ProjectMetrics::aiGeneratedCount);
+                p -> (p.requirementCoverage() + p.reviewEffortReduction() + p.qualityImprovement()) / 3.0d,
+                p -> p.aiGeneratedCount() > 0.0d ? p.aiGeneratedCount() : p.totalTestsBefore());
         double coverageTrend = coverage >= Constants.REQUIREMENT_COVERAGE_TARGET ? 1.0d : -1.0d;
-        double reviewTrend = weightedAverage(projects, ProjectMetrics::reviewEffortReduction, ProjectMetrics::aiGeneratedCount) >= Constants.REVIEW_REDUCTION_TARGET ? 1.0d : -1.0d;
+        double reviewTrend = weightedAverage(projects, ProjectMetrics::reviewEffortReduction, ProjectMetrics::aiGeneratedCount)
+                >= Constants.REVIEW_REDUCTION_TARGET ? 1.0d : -1.0d;
         double productivityTrend = executiveSummary.overallProductivityGain() >= Constants.PRODUCTIVITY_GAIN_TARGET ? 1.0d : -1.0d;
         return new GovernanceSummary(
                 determineMaturityLevel(executiveSummary.overallProductivityGain()),
@@ -168,12 +193,16 @@ public class MetricsCalculator {
         Map<String, Object> charts = new LinkedHashMap<>();
         List<String> labels = projects.stream().map(ProjectMetrics::projectName).collect(Collectors.toList());
         charts.put("labels", labels);
-        charts.put("baselineProductivity", projects.stream().map(ProjectMetrics::baselineProductivityPerHour).toList());
-        charts.put("aiProductivity", projects.stream().map(ProjectMetrics::aiProductivityPerHour).toList());
+        charts.put("productivityGainValues", projects.stream().map(ProjectMetrics::productivityGain).toList());
         charts.put("adoptionRates", projects.stream().map(ProjectMetrics::aiAdoptionRate).toList());
-        charts.put("coverageValues", projects.stream().map(ProjectMetrics::requirementCoverage).toList());
+        charts.put("coverageBeforeValues", projects.stream().map(p -> p.baselineMetrics().requirementCoveragePercent()).toList());
+        charts.put("coverageAfterValues", projects.stream().map(ProjectMetrics::requirementCoverage).toList());
         charts.put("automationValues", projects.stream().map(ProjectMetrics::automationCandidatePercentage).toList());
         charts.put("costAvoidanceValues", projects.stream().map(ProjectMetrics::costAvoidance).toList());
+        charts.put("defectDensityBeforeValues", projects.stream().map(ProjectMetrics::defectDensityBefore).toList());
+        charts.put("defectDensityAfterValues", projects.stream().map(ProjectMetrics::defectDensityAfter).toList());
+        charts.put("reviewEffortBeforeValues", projects.stream().map(p -> p.baselineMetrics().reviewEffortBeforeHours()).toList());
+        charts.put("reviewEffortAfterValues", projects.stream().map(p -> p.aiMetrics().reviewEffortAfterHours()).toList());
         return charts;
     }
 
@@ -197,6 +226,9 @@ public class MetricsCalculator {
         double denominator = 0.0d;
         for (ProjectMetrics project : projects) {
             double currentWeight = weight.applyAsDouble(project);
+            if (currentWeight <= 0.0d) {
+                continue;
+            }
             numerator += value.applyAsDouble(project) * currentWeight;
             denominator += currentWeight;
         }
@@ -207,7 +239,7 @@ public class MetricsCalculator {
         double totalAiCases = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
         double baselineComparableHours = projects.stream()
                 .mapToDouble(project -> ValidationUtils.safeDivide(
-                        project.baselineMetrics().estimatedTotalHours(),
+                        project.baselineMetrics().totalCoreHours(),
                         project.baselineMetrics().totalTestCasesPerMonth()) * project.aiGeneratedCount())
                 .sum();
         return ValidationUtils.safeDivide(totalAiCases, baselineComparableHours);
@@ -215,7 +247,7 @@ public class MetricsCalculator {
 
     private double calculatePortfolioAfterRate(List<ProjectMetrics> projects) {
         double totalAiCases = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
-        double aiHours = projects.stream().mapToDouble(project -> project.aiMetrics().estimatedTotalHours()).sum();
+        double aiHours = projects.stream().mapToDouble(project -> project.aiMetrics().totalAiHours()).sum();
         return ValidationUtils.safeDivide(totalAiCases, aiHours);
     }
 

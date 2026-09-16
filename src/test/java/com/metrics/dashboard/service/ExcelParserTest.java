@@ -2,11 +2,11 @@ package com.metrics.dashboard.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.metrics.dashboard.exception.ExcelParsingException;
 import com.metrics.dashboard.model.ProjectMetrics;
 import com.metrics.dashboard.support.TestWorkbookFactory;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,14 +25,15 @@ class ExcelParserTest {
         assertEquals("CenAccess", projects.get(0).projectName());
         assertEquals(520.0d, projects.get(0).baselineMetrics().totalTestCasesPerMonth());
         assertEquals(390.0d, projects.get(0).aiMetrics().generatedTestCases());
+        assertEquals(4.0d, projects.get(0).aiMetrics().reviewDefectsFound());
     }
 
     @Test
-    void failsWhenRequiredHeaderIsMissing() throws Exception {
+    void failsWhenBeforeAiSheetIsMissing() throws Exception {
         Path workbook = Files.createTempFile("metrics-missing-header", ".xlsx");
         try (XSSFWorkbook xssfWorkbook = new XSSFWorkbook(); OutputStream outputStream = Files.newOutputStream(workbook)) {
-            xssfWorkbook.createSheet("Before AI").createRow(0).createCell(0).setCellValue("Project Name");
-            xssfWorkbook.createSheet("After AI").createRow(0).createCell(0).setCellValue("Project Name");
+            xssfWorkbook.createSheet("Baseline").createRow(0).createCell(0).setCellValue("Project");
+            xssfWorkbook.createSheet("CenAccess - After AI");
             xssfWorkbook.write(outputStream);
         }
 
@@ -40,42 +41,23 @@ class ExcelParserTest {
     }
 
     @Test
-    void failsWhenProjectExistsInOnlyOneSheet() throws Exception {
+    void defaultsAiMetricsWhenProjectExistsOnlyInBeforeSheet() throws Exception {
         Path workbook = Files.createTempFile("metrics-mismatch", ".xlsx");
         try (XSSFWorkbook xssfWorkbook = new XSSFWorkbook(); OutputStream outputStream = Files.newOutputStream(workbook)) {
-            var before = xssfWorkbook.createSheet("Before AI");
-            before.createRow(0).createCell(0).setCellValue("Project Name");
+            var before = xssfWorkbook.createSheet("Baseline - Before AI");
+            before.createRow(0).createCell(0).setCellValue("Project");
             before.getRow(0).createCell(1).setCellValue("Lead");
-            before.createRow(1).createCell(0).setCellValue("CenAccess");
-            before.getRow(1).createCell(1).setCellValue("Alex");
-
-            var after = xssfWorkbook.createSheet("After AI");
-            after.createRow(0).createCell(0).setCellValue("Project Name");
-            after.getRow(0).createCell(1).setCellValue("Lead");
-            after.createRow(1).createCell(0).setCellValue("Guided Flow");
-            after.getRow(1).createCell(1).setCellValue("Jordan");
+            before.createRow(1).createCell(2).setCellValue("Complex");
+            before.createRow(2).createCell(0).setCellValue("CenAccess");
+            before.getRow(2).createCell(1).setCellValue("Alex");
+            before.getRow(2).createCell(10).setCellValue(120);
+            xssfWorkbook.createSheet("After AI");
             xssfWorkbook.write(outputStream);
-        }
-
-        assertThrows(ExcelParsingException.class, () -> new ExcelParser().parse(workbook));
-    }
-
-    @Test
-    void matchesProjectsCaseInsensitivelyAcrossSheets() throws Exception {
-        Path workbook = TestWorkbookFactory.writeSampleWorkbook(Files.createTempFile("metrics-case", ".xlsx"));
-        try (InputStream inputStream = Files.newInputStream(workbook);
-                XSSFWorkbook xssfWorkbook = new XSSFWorkbook(inputStream)) {
-            xssfWorkbook.getSheet("After AI").getRow(1).getCell(0).setCellValue("cenaccess");
-            try (OutputStream outputStream = Files.newOutputStream(workbook)) {
-            xssfWorkbook.write(outputStream);
-            }
         }
 
         List<ProjectMetrics> projects = new ExcelParser().parse(workbook);
-
-        assertEquals(2, projects.size());
-        assertEquals("CenAccess", projects.get(0).projectName());
-        assertEquals(390.0d, projects.get(0).aiMetrics().generatedTestCases());
+        assertEquals(1, projects.size());
+        assertEquals(0.0d, projects.get(0).aiMetrics().generatedTestCases());
     }
 
     @Test
@@ -90,5 +72,19 @@ class ExcelParserTest {
         }
 
         assertThrows(ExcelParsingException.class, () -> new ExcelParser().parse(workbook));
+    }
+
+    @Test
+    void parsesActualQaEffortWorkbook() {
+        Path workbook = Path.of("sample_data", "QA_Effort_Spent.xlsx");
+        List<ProjectMetrics> projects = new ExcelParser().parse(workbook);
+
+        assertTrue(projects.size() >= 8);
+        ProjectMetrics digital = projects.stream()
+                .filter(project -> project.projectName().equalsIgnoreCase("Digital Initiatives"))
+                .findFirst()
+                .orElseThrow();
+        assertTrue(digital.aiMetrics().generatedTestCases() > 100.0d);
+        assertTrue(digital.aiMetrics().automationCandidates() > 0.0d);
     }
 }

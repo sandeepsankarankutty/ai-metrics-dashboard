@@ -11,7 +11,7 @@ mvn clean package
 ## Run
 
 ```bash
-java -jar target/ai-metrics-dashboard-1.0.0-SNAPSHOT.jar --input sample_data/sample_metrics.xlsx --output dashboard.html
+java -jar target/ai-metrics-dashboard-1.0.0-SNAPSHOT.jar --input sample_data/QA_Effort_Spent.xlsx --output dashboard.html
 ```
 
 ## Options
@@ -23,8 +23,8 @@ java -jar target/ai-metrics-dashboard-1.0.0-SNAPSHOT.jar --input sample_data/sam
 
 ## Workbook format
 
-Use two sheets named `Before AI` and `After AI` (or sheet names containing those phrases). Each row represents one application/project.
+Use one baseline sheet with a name containing `Before AI` and one or more sheets containing `After AI`.
 
-The parser supports the metrics described in the issue, including requirement-analysis hours, test-case creation hours, coverage, review effort, AI interaction time, stories analyzed, tests generated, and automation candidates.
+The parser supports the actual QA workbook layout: multi-column baseline metrics and per-project/week AI sheets (stories by complexity, AI interaction time, generated tests, coverage, review/rework, and quality indicators).
 
-A sample workbook is included at `sample_data/sample_metrics.xlsx`.
+A sample workbook is included at `sample_data/QA_Effort_Spent.xlsx`.
