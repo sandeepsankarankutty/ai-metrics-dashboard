@@ -91,11 +91,11 @@ public class ExcelParser {
                     ValidationUtils.round(ValidationUtils.sumMatching(numericValues, "hours", "analyze")),
                     ValidationUtils.round(ValidationUtils.sumMatching(numericValues, "hours", "createtestcase")
                             + ValidationUtils.sumMatching(numericValues, "hours", "designtest")),
-                    ValidationUtils.round(firstMatching(numericValues, "totaltestcasesmonth", "totaltestcases")),
-                    ValidationUtils.round(ValidationUtils.normalizePercentage(firstMatching(numericValues, "requirementcoverage", "coverage"))),
-                    ValidationUtils.round(firstMatching(numericValues, "defectsfoundfromtestcases", "defectsfound")),
-                    ValidationUtils.round(firstMatching(numericValues, "reviewhoursper100testcases", "reviewhoursper100cases", "reviewhours")),
-                    ValidationUtils.round(ValidationUtils.normalizePercentage(firstMatching(numericValues, "testcasesupdatedafterreview", "reworkrate", "updatedafterreview"))));
+                    ValidationUtils.round(firstMatching(numericValues, "totaltestcasesmonth", "totaltestcasespermonth")),
+                    ValidationUtils.round(ValidationUtils.normalizePercentage(firstMatching(numericValues, "requirementcoverage"))),
+                    ValidationUtils.round(firstMatching(numericValues, "defectsfoundfromtestcases")),
+                    ValidationUtils.round(firstMatching(numericValues, "reviewhoursper100testcases", "reviewhoursper100cases")),
+                    ValidationUtils.round(ValidationUtils.normalizePercentage(firstMatching(numericValues, "testcasesupdatedafterreview", "percenttestcasesupdatedafterreview", "reworkrate"))));
             projects.put(projectName, metrics);
         }
         return projects;
@@ -122,10 +122,10 @@ public class ExcelParser {
                     ValidationUtils.round(firstMatching(numericValues, "numberofstoriesanalyzed", "storiesanalyzed")),
                     ValidationUtils.round(firstMatching(numericValues, "aitotalinteractiontime", "interactiontime")),
                     ValidationUtils.round(firstMatching(numericValues, "numberoftestcasesgenerated", "generatedtestcases", "aitestcases")),
-                    ValidationUtils.round(ValidationUtils.normalizePercentage(firstMatching(numericValues, "testcasecoverage", "coverage"))),
-                    ValidationUtils.round(firstMatching(numericValues, "automationcandidatesidentified", "automationcandidates")),
-                    ValidationUtils.round(firstMatching(numericValues, "reviewdefectsfoundintestcases", "reviewdefectsfound")),
-                    ValidationUtils.round(firstMatching(numericValues, "reviewtimepertestcase", "reviewtime")));
+                    ValidationUtils.round(ValidationUtils.normalizePercentage(firstMatching(numericValues, "testcasecoverage", "testcasecoveragepct"))),
+                    ValidationUtils.round(firstMatching(numericValues, "automationcandidatesidentified")),
+                    ValidationUtils.round(firstMatching(numericValues, "reviewdefectsfoundintestcases")),
+                    ValidationUtils.round(firstMatching(numericValues, "reviewtimepertestcase")));
             projects.put(projectName, metrics);
         }
         return projects;
@@ -159,10 +159,8 @@ public class ExcelParser {
 
     private double firstMatching(Map<String, Double> values, String... candidates) {
         for (String candidate : candidates) {
-            for (Map.Entry<String, Double> entry : values.entrySet()) {
-                if (entry.getKey().contains(candidate)) {
-                    return entry.getValue();
-                }
+            if (values.containsKey(candidate)) {
+                return values.get(candidate);
             }
         }
         return 0.0d;

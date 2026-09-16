@@ -149,10 +149,11 @@ public class MetricsCalculator {
     }
 
     private GovernanceSummary createGovernanceSummary(List<ProjectMetrics> projects, ExecutiveSummary executiveSummary) {
+        double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsGenerated);
         double qualityScore = weightedAverage(projects,
                 p -> (p.requirementCoverage() + p.reviewEffortReduction() + Math.min(100.0d, p.automationCandidatePercentage())) / 3.0d,
                 ProjectMetrics::aiGeneratedCount);
-        double coverageTrend = executiveSummary.aiGeneratedPercentage() >= 70.0d ? 1.0d : -1.0d;
+        double coverageTrend = coverage >= Constants.REQUIREMENT_COVERAGE_TARGET ? 1.0d : -1.0d;
         double reviewTrend = weightedAverage(projects, ProjectMetrics::reviewEffortReduction, ProjectMetrics::aiGeneratedCount) >= Constants.REVIEW_REDUCTION_TARGET ? 1.0d : -1.0d;
         double productivityTrend = executiveSummary.overallProductivityGain() >= Constants.PRODUCTIVITY_GAIN_TARGET ? 1.0d : -1.0d;
         return new GovernanceSummary(

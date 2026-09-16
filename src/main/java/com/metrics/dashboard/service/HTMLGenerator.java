@@ -30,7 +30,7 @@ public class HTMLGenerator {
         try {
             Template template = configuration.getTemplate("dashboard.ftl");
             Map<String, Object> templateModel = objectMapper.convertValue(dashboardData, new TypeReference<>() { });
-            templateModel.put("chartsJson", objectMapper.writeValueAsString(dashboardData.charts()));
+            templateModel.put("chartsJson", objectMapper.writeValueAsString(dashboardData.charts()).replace("<", "\\u003c"));
             if (outputPath.getParent() != null) {
                 Files.createDirectories(outputPath.getParent());
             }

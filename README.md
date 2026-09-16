@@ -27,4 +27,4 @@ Use two sheets named `Before AI` and `After AI` (or sheet names containing those
 
 The parser supports the metrics described in the issue, including requirement-analysis hours, test-case creation hours, coverage, review effort, AI interaction time, stories analyzed, tests generated, and automation candidates.
 
-A sample workbook is included at `/home/runner/work/ai-metrics-dashboard/ai-metrics-dashboard/sample_data/sample_metrics.xlsx`.
+A sample workbook is included at `sample_data/sample_metrics.xlsx`.
