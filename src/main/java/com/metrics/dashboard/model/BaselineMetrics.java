@@ -7,22 +7,51 @@ import com.metrics.dashboard.util.ValidationUtils;
 public record BaselineMetrics(
         String projectName,
         String lead,
-        double analysisHours,
-        double testCaseCreationHours,
+        double analysisHoursComplexBS,
+        double analysisHoursHighSP,
+        double analysisHoursMediumSP,
+        double analysisHoursLowerSP,
+        double designHoursComplexBS,
+        double designHoursHighSP,
+        double designHoursMediumSP,
+        double designHoursLowerSP,
         double totalTestCasesPerMonth,
-        double requirementCoverage,
+        double requirementCoveragePercent,
         double defectsFound,
         double reviewHoursPer100Cases,
-        double reworkRate) {
+        double reworkPercentage) {
+
+    public double analysisHours() {
+        return analysisHoursComplexBS + analysisHoursHighSP + analysisHoursMediumSP + analysisHoursLowerSP;
+    }
+
+    public double testCaseCreationHours() {
+        return designHoursComplexBS + designHoursHighSP + designHoursMediumSP + designHoursLowerSP;
+    }
+
+    public double totalCoreHours() {
+        return analysisHours() + testCaseCreationHours();
+    }
+
+    public double reviewEffortBeforeHours() {
+        return (totalTestCasesPerMonth * reviewHoursPer100Cases) / 100.0d;
+    }
+
+    public double totalEffortHours() {
+        double reworkHours = testCaseCreationHours() * (ValidationUtils.normalizePercentage(reworkPercentage) / 100.0d);
+        return totalCoreHours() + reviewEffortBeforeHours() + reworkHours;
+    }
 
     public double estimatedTotalHours() {
-        double reviewHours = (reviewHoursPer100Cases / 100.0d) * totalTestCasesPerMonth;
-        double reworkHours = testCaseCreationHours * (reworkRate / 100.0d);
-        return analysisHours + testCaseCreationHours + reviewHours + reworkHours;
+        return totalEffortHours();
+    }
+
+    public double defectDensity() {
+        return ValidationUtils.safeDivide(defectsFound, totalTestCasesPerMonth);
     }
 
     public double productivityPerHour() {
-        return ValidationUtils.safeDivide(totalTestCasesPerMonth, estimatedTotalHours());
+        return ValidationUtils.safeDivide(totalTestCasesPerMonth, totalCoreHours());
     }
 
     public double productivityPerDay() {
@@ -30,6 +59,6 @@ public record BaselineMetrics(
     }
 
     public double defectYield() {
-        return ValidationUtils.safeDivide(defectsFound, totalTestCasesPerMonth) * 100.0d;
+        return defectDensity() * 100.0d;
     }
 }

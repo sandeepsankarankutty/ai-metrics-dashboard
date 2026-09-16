@@ -132,7 +132,7 @@
     <div class="header">
         <div class="title-block">
             <h1>AI Productivity Dashboard</h1>
-            <p>Interactive portfolio view of QA baseline, AI uplift, KPIs, and governance health.</p>
+            <p>Interactive portfolio view of QA baseline, AI uplift, KPIs, quality, and cost outcomes.</p>
         </div>
         <div class="meta">
             <div>Generated: ${generatedAt}</div>
@@ -142,16 +142,24 @@
 
     <div class="grid summary-cards">
         <div class="card">
-            <div class="metric-label">Total Stories</div>
-            <div class="summary-value">${executiveSummary.totalStories?string["0.##"]}</div>
+            <div class="metric-label">Total Projects</div>
+            <div class="summary-value">${executiveSummary.totalProjects?string["0.##"]}</div>
         </div>
         <div class="card">
-            <div class="metric-label">Total Tests Generated</div>
-            <div class="summary-value">${executiveSummary.totalTestsGenerated?string["0.##"]}</div>
+            <div class="metric-label">Total Stories Analyzed</div>
+            <div class="summary-value">${executiveSummary.totalStoriesAnalyzed?string["0.##"]}</div>
         </div>
         <div class="card">
-            <div class="metric-label">AI Generated %</div>
-            <div class="summary-value">${executiveSummary.aiGeneratedPercentage?string["0.##"]}%</div>
+            <div class="metric-label">Total Test Cases Before AI</div>
+            <div class="summary-value">${executiveSummary.totalTestCasesBefore?string["0.##"]}</div>
+        </div>
+        <div class="card">
+            <div class="metric-label">Total Test Cases Generated</div>
+            <div class="summary-value">${executiveSummary.totalTestCasesAfter?string["0.##"]}</div>
+        </div>
+        <div class="card">
+            <div class="metric-label">AI Generated Tests</div>
+            <div class="summary-value">${executiveSummary.totalTestCasesAI?string["0.##"]} (${executiveSummary.aiAdoptionPercent?string["0.##"]}%)</div>
         </div>
         <div class="card">
             <div class="metric-label">Overall Productivity Gain</div>
@@ -159,11 +167,15 @@
         </div>
         <div class="card">
             <div class="metric-label">Hours Saved</div>
-            <div class="summary-value">${executiveSummary.hoursSaved?string["0.##"]}</div>
+            <div class="summary-value">${executiveSummary.totalHoursSaved?string["0.##"]}</div>
         </div>
         <div class="card">
             <div class="metric-label">Cost Avoidance</div>
-            <div class="summary-value">$${executiveSummary.costAvoidance?string["0.##"]}</div>
+            <div class="summary-value">$${executiveSummary.totalCostAvoidance?string["0.##"]}</div>
+        </div>
+        <div class="card">
+            <div class="metric-label">Quality Improvement</div>
+            <div class="summary-value">${executiveSummary.qualityImprovement?string["0.##"]}%</div>
         </div>
     </div>
 
@@ -208,24 +220,34 @@
             <thead>
             <tr>
                 <th data-sort="string">Application name</th>
-                <th data-sort="number">Stories analyzed</th>
-                <th data-sort="number">Tests Generated</th>
+                <th data-sort="number">Test Cases Before</th>
+                <th data-sort="number">Test Cases After</th>
                 <th data-sort="number">AI Generated count</th>
                 <th data-sort="number">Productivity Gain %</th>
                 <th data-sort="number">Coverage %</th>
+                <th data-sort="number">Defect Density Before</th>
+                <th data-sort="number">Defect Density After</th>
+                <th data-sort="number">Quality Improvement %</th>
                 <th data-sort="number">Automation Candidate %</th>
+                <th data-sort="number">Hours Saved</th>
+                <th data-sort="number">Cost Avoidance</th>
             </tr>
             </thead>
             <tbody>
             <#list projects as project>
                 <tr>
                     <td>${project.projectName?html}</td>
-                    <td>${project.aiMetrics.storiesAnalyzed?string["0.##"]}</td>
+                    <td>${project.totalTestsBefore?string["0.##"]}</td>
                     <td>${project.totalTestsGenerated?string["0.##"]}</td>
                     <td>${project.aiGeneratedCount?string["0.##"]}</td>
                     <td>${project.productivityGain?string["0.##"]}</td>
                     <td>${project.requirementCoverage?string["0.##"]}</td>
+                    <td>${project.defectDensityBefore?string["0.###"]}</td>
+                    <td>${project.defectDensityAfter?string["0.###"]}</td>
+                    <td>${project.qualityImprovement?string["0.##"]}</td>
                     <td>${project.automationCandidatePercentage?string["0.##"]}</td>
+                    <td>${project.hoursSaved?string["0.##"]}</td>
+                    <td>${project.costAvoidance?string["0.##"]}</td>
                 </tr>
             </#list>
             </tbody>
@@ -260,11 +282,13 @@
     </div>
 
     <div class="grid charts" style="margin-top: 24px;">
-        <div class="card"><h3>Productivity Gain Chart</h3><canvas id="productivity-chart" width="520" height="280"></canvas></div>
-        <div class="card"><h3>AI Adoption Trend Chart</h3><canvas id="adoption-chart" width="520" height="280"></canvas></div>
-        <div class="card"><h3>Coverage % by Application</h3><canvas id="coverage-chart" width="520" height="280"></canvas></div>
+        <div class="card"><h3>Productivity Gain by Project</h3><canvas id="productivity-chart" width="520" height="280"></canvas></div>
+        <div class="card"><h3>AI Adoption Trend</h3><canvas id="adoption-chart" width="520" height="280"></canvas></div>
+        <div class="card"><h3>Coverage Comparison (Before vs After)</h3><canvas id="coverage-chart" width="520" height="280"></canvas></div>
         <div class="card"><h3>Automation Readiness Distribution</h3><canvas id="automation-chart" width="520" height="280"></canvas></div>
         <div class="card"><h3>Cost Avoidance Breakdown</h3><canvas id="cost-chart" width="520" height="280"></canvas></div>
+        <div class="card"><h3>Quality Metrics (Defect Density)</h3><canvas id="quality-chart" width="520" height="280"></canvas></div>
+        <div class="card"><h3>Review Effort Reduction</h3><canvas id="review-chart" width="520" height="280"></canvas></div>
     </div>
 </div>
 
@@ -353,11 +377,13 @@ function renderDualBarChart(canvasId, labels, firstValues, secondValues) {
     ctx.fillText('After AI', width - 25, 22);
 }
 
-renderDualBarChart('productivity-chart', chartData.labels, chartData.baselineProductivity, chartData.aiProductivity);
+renderBarChart('productivity-chart', chartData.labels, chartData.productivityGainValues, { color: '#2563eb' });
 renderBarChart('adoption-chart', chartData.labels, chartData.adoptionRates, { color: '#7c3aed', maxValue: 100 });
-renderBarChart('coverage-chart', chartData.labels, chartData.coverageValues, { color: '#0891b2', maxValue: 100 });
+renderDualBarChart('coverage-chart', chartData.labels, chartData.coverageBeforeValues, chartData.coverageAfterValues);
 renderBarChart('automation-chart', chartData.labels, chartData.automationValues, { color: '#ea580c', maxValue: 100 });
 renderBarChart('cost-chart', chartData.labels, chartData.costAvoidanceValues, { color: '#16a34a' });
+renderDualBarChart('quality-chart', chartData.labels, chartData.defectDensityBeforeValues, chartData.defectDensityAfterValues);
+renderDualBarChart('review-chart', chartData.labels, chartData.reviewEffortBeforeValues, chartData.reviewEffortAfterValues);
 
 (function enableSorting() {
     const table = document.getElementById('performance-table');

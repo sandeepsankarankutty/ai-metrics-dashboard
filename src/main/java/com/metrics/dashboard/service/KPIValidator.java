@@ -16,7 +16,8 @@ public class KPIValidator {
         double productivityGain = calculatePortfolioGain(projects);
         double reviewReduction = weightedAverage(projects, ProjectMetrics::reviewEffortReduction, ProjectMetrics::aiGeneratedCount);
         double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsGenerated);
-        double automation = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage, ProjectMetrics::aiGeneratedCount);
+        double automation = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage,
+                p -> p.aiGeneratedCount() > 0.0d ? p.aiGeneratedCount() : p.totalTestsGenerated());
         double adoption = ValidationUtils.safeDivide(totalAiTests, totalTests) * 100.0d;
 
         KPIStatus productivityStatus = determineStatus(productivityGain, Constants.PRODUCTIVITY_GAIN_TARGET);
@@ -29,7 +30,7 @@ public class KPIValidator {
                 new KPIData("Test Design Productivity Gain", ValidationUtils.round(productivityGain),
                         Constants.PRODUCTIVITY_GAIN_TARGET, productivityStatus, productivityStatus.getCssClass(),
                         "Target: +30% annual improvement", "%"),
-                new KPIData("AI Adoption", ValidationUtils.round(adoption), Constants.AI_ADOPTION_TARGET, adoptionStatus,
+                new KPIData("AI Adoption Rate", ValidationUtils.round(adoption), Constants.AI_ADOPTION_TARGET, adoptionStatus,
                         adoptionStatus.getCssClass(),
                         "Target: 60-80% of tests AI-assisted", "%"),
                 new KPIData("Review Effort Reduction", ValidationUtils.round(reviewReduction),
@@ -71,10 +72,10 @@ public class KPIValidator {
         double totalAiCases = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
         double baselineComparableHours = projects.stream()
                 .mapToDouble(project -> ValidationUtils.safeDivide(
-                        project.baselineMetrics().estimatedTotalHours(),
+                        project.baselineMetrics().totalCoreHours(),
                         project.baselineMetrics().totalTestCasesPerMonth()) * project.aiGeneratedCount())
                 .sum();
-        double aiHours = projects.stream().mapToDouble(project -> project.aiMetrics().estimatedTotalHours()).sum();
+        double aiHours = projects.stream().mapToDouble(project -> project.aiMetrics().totalAiHours()).sum();
         double beforeRate = ValidationUtils.safeDivide(totalAiCases, baselineComparableHours);
         double afterRate = ValidationUtils.safeDivide(totalAiCases, aiHours);
         return beforeRate == 0.0d ? 0.0d : ((afterRate - beforeRate) / beforeRate) * 100.0d;
