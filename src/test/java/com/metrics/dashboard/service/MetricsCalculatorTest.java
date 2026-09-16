@@ -31,7 +31,7 @@ class MetricsCalculatorTest {
         assertEquals(10.0d, project.baselineProductivityPerHour());
         assertEquals(8.57d, project.aiProductivityPerHour());
         assertEquals(-14.29d, project.productivityGain());
-        assertEquals(25.0d, project.automationCandidatePercentage());
+        assertEquals(50.0d, project.automationCandidatePercentage());
         assertEquals(50.0d, project.qualityImprovement());
         assertTrue(dashboardData.executiveSummary().totalCostAvoidance() >= 0.0d);
     }

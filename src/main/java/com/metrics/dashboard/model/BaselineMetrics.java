@@ -33,12 +33,17 @@ public record BaselineMetrics(
         return analysisHours() + testCaseCreationHours();
     }
 
-    public double estimatedTotalHours() {
-        return totalCoreHours();
-    }
-
     public double reviewEffortBeforeHours() {
         return (totalTestCasesPerMonth * reviewHoursPer100Cases) / 100.0d;
+    }
+
+    public double totalEffortHours() {
+        double reworkHours = testCaseCreationHours() * (ValidationUtils.normalizePercentage(reworkPercentage) / 100.0d);
+        return totalCoreHours() + reviewEffortBeforeHours() + reworkHours;
+    }
+
+    public double estimatedTotalHours() {
+        return totalEffortHours();
     }
 
     public double defectDensity() {

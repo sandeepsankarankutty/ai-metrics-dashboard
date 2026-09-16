@@ -11,12 +11,13 @@ import java.util.List;
 public class KPIValidator {
     /** Builds the portfolio KPI set. */
     public List<KPIData> buildPortfolioKpis(List<ProjectMetrics> projects) {
-        double totalTests = projects.stream().mapToDouble(ProjectMetrics::totalTestsBefore).sum();
+        double totalTests = projects.stream().mapToDouble(ProjectMetrics::totalTestsGenerated).sum();
         double totalAiTests = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
         double productivityGain = calculatePortfolioGain(projects);
         double reviewReduction = weightedAverage(projects, ProjectMetrics::reviewEffortReduction, ProjectMetrics::aiGeneratedCount);
-        double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsBefore);
-        double automation = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage, ProjectMetrics::totalTestsBefore);
+        double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsGenerated);
+        double automation = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage,
+                p -> p.aiGeneratedCount() > 0.0d ? p.aiGeneratedCount() : p.totalTestsGenerated());
         double adoption = ValidationUtils.safeDivide(totalAiTests, totalTests) * 100.0d;
 
         KPIStatus productivityStatus = determineStatus(productivityGain, Constants.PRODUCTIVITY_GAIN_TARGET);
@@ -74,7 +75,7 @@ public class KPIValidator {
                         project.baselineMetrics().totalCoreHours(),
                         project.baselineMetrics().totalTestCasesPerMonth()) * project.aiGeneratedCount())
                 .sum();
-        double aiHours = projects.stream().mapToDouble(project -> project.aiMetrics().estimatedTotalHours()).sum();
+        double aiHours = projects.stream().mapToDouble(project -> project.aiMetrics().totalAiHours()).sum();
         double beforeRate = ValidationUtils.safeDivide(totalAiCases, baselineComparableHours);
         double afterRate = ValidationUtils.safeDivide(totalAiCases, aiHours);
         return beforeRate == 0.0d ? 0.0d : ((afterRate - beforeRate) / beforeRate) * 100.0d;

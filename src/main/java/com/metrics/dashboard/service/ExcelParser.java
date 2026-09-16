@@ -27,7 +27,6 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 /** Parses the input workbook into project metrics. */
 public class ExcelParser {
     private static final Pattern NUMBER_PATTERN = Pattern.compile("-?\\d+(?:\\.\\d+)?");
-    private static final String AFTER_AI_SUFFIX = "-afterai";
     private final DataFormatter formatter = new DataFormatter(Locale.US);
 
     /** Parses the workbook located at the supplied path. */
@@ -108,11 +107,12 @@ public class ExcelParser {
             if (!ValidationUtils.normalizeHeader(sheet.getSheetName()).contains(Constants.AFTER_AI_SHEET_KEYWORD)) {
                 continue;
             }
-
-            AIMetrics metrics = isLegacyAfterSheet(sheet)
-                    ? parseLegacyAfterSheet(sheet)
-                    : parseWeeklyAfterSheet(sheet, baselineByProject);
-            projects.put(normalizeProjectKey(metrics.projectName()), metrics);
+            if (isLegacyAfterSheet(sheet)) {
+                projects.putAll(parseLegacyAfterSheet(sheet));
+            } else {
+                AIMetrics metrics = parseWeeklyAfterSheet(sheet, baselineByProject);
+                projects.put(normalizeProjectKey(metrics.projectName()), metrics);
+            }
         }
         return projects;
     }
@@ -131,18 +131,23 @@ public class ExcelParser {
         return false;
     }
 
-    private AIMetrics parseLegacyAfterSheet(Sheet sheet) {
+    private Map<String, AIMetrics> parseLegacyAfterSheet(Sheet sheet) {
         Map<String, Integer> headers = readHeaders(sheet.getRow(0));
+        Map<String, AIMetrics> metricsByProject = new LinkedHashMap<>();
         for (int rowIndex = 1; rowIndex <= sheet.getLastRowNum(); rowIndex++) {
             Row row = sheet.getRow(rowIndex);
-            if (row == null || readString(row, headers.getOrDefault("projectname", 0)).isBlank()) {
+            int projectCol = firstHeader(headers, "projectname");
+            if (projectCol < 0) {
+                projectCol = firstHeader(headers, "project");
+            }
+            if (row == null || readString(row, projectCol).isBlank()) {
                 continue;
             }
-            String projectName = readString(row, headers.getOrDefault("projectname", 0));
+            String projectName = readString(row, projectCol);
             String lead = readString(row, headers.getOrDefault("lead", 1));
             double stories = readByHeader(row, headers, "numberofstoriesanalyzed", "storiesanalyzed");
             double generated = readByHeader(row, headers, "numberoftestcasesgenerated", "generatedtestcases", "aitestcases");
-            return new AIMetrics(
+            AIMetrics metrics = new AIMetrics(
                     projectName,
                     lead,
                     stories,
@@ -160,8 +165,9 @@ public class ExcelParser {
                     readByHeader(row, headers, "reviewdefectsfoundintestcases"),
                     readByHeader(row, headers, "reviewtimepertestcase"),
                     ValidationUtils.normalizePercentage(readByHeader(row, headers, "reworkpercentage")));
+            metricsByProject.put(normalizeProjectKey(projectName), metrics);
         }
-        return emptyAiFor(sheet.getSheetName(), "");
+        return metricsByProject;
     }
 
     private AIMetrics parseWeeklyAfterSheet(Sheet sheet, Map<String, BaselineMetrics> baselineByProject) {
@@ -179,6 +185,9 @@ public class ExcelParser {
         int lowCol = firstHeader(complexityHeaders, "low");
         int interactionCol = firstHeader(metricHeaders, "aitoolinteractiontime");
         int generatedCol = firstHeader(metricHeaders, "numberoftestcasesgeneratedusingai");
+        if (generatedCol < 0) {
+            generatedCol = firstHeader(metricHeaders, "numberoftestcasesgenerated");
+        }
         int coverageCol = firstHeader(metricHeaders, "requirementcoverage");
         int edgeCasesCol = firstHeader(metricHeaders, "edgecasesidentified");
         int reviewDefectsCol = firstHeader(metricHeaders, "reviewdefectsfoundintestcases");
@@ -337,7 +346,10 @@ public class ExcelParser {
     }
 
     private String resolveProjectNameFromSheet(String sheetName, Map<String, BaselineMetrics> baselineByProject) {
-        String cleaned = ValidationUtils.normalizeHeader(sheetName).replace(AFTER_AI_SUFFIX, "");
+        String cleaned = ValidationUtils.normalizeHeader(sheetName);
+        if (cleaned.endsWith(Constants.AFTER_AI_SHEET_KEYWORD)) {
+            cleaned = cleaned.substring(0, cleaned.length() - Constants.AFTER_AI_SHEET_KEYWORD.length());
+        }
         if (cleaned.isBlank()) {
             return sheetName;
         }
@@ -354,6 +366,10 @@ public class ExcelParser {
                 bestKey = baselineKey;
             }
         }
+        int threshold = Math.max(2, cleaned.length() / 4);
+        if (bestDistance > threshold) {
+            return sheetName.replaceAll("(?i)\\s*-\\s*after\\s*ai\\s*$", "").trim();
+        }
         BaselineMetrics baseline = baselineByProject.get(bestKey);
         return baseline != null ? baseline.projectName() : sheetName;
     }
@@ -362,34 +378,26 @@ public class ExcelParser {
         if (left.equals(right)) {
             return 0;
         }
-        int[] costs = new int[right.length() + 1];
+        int[][] dp = new int[left.length() + 1][right.length() + 1];
+        for (int i = 0; i <= left.length(); i++) {
+            dp[i][0] = i;
+        }
         for (int j = 0; j <= right.length(); j++) {
-            costs[j] = j;
+            dp[0][j] = j;
         }
         for (int i = 1; i <= left.length(); i++) {
-            costs[0] = i;
-            int previousDiagonal = i - 1;
             for (int j = 1; j <= right.length(); j++) {
-                int temp = costs[j];
-                int replace = previousDiagonal + (left.charAt(i - 1) == right.charAt(j - 1) ? 0 : 1);
-                int insert = costs[j - 1] + 1;
-                int delete = temp + 1;
-                costs[j] = Math.min(Math.min(insert, delete), replace);
-                previousDiagonal = temp;
+                int replaceCost = left.charAt(i - 1) == right.charAt(j - 1) ? 0 : 1;
+                dp[i][j] = Math.min(
+                        Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1),
+                        dp[i - 1][j - 1] + replaceCost);
             }
         }
-        return costs[right.length()];
+        return dp[left.length()][right.length()];
     }
 
     private String normalizeProjectKey(String projectName) {
         return ValidationUtils.normalizeHeader(projectName);
-    }
-
-    private BaselineMetrics emptyBaselineFor(String projectName, String lead) {
-        return new BaselineMetrics(projectName, lead,
-                0.0d, 0.0d, 0.0d, 0.0d,
-                0.0d, 0.0d, 0.0d, 0.0d,
-                0.0d, 0.0d, 0.0d, 0.0d, 0.0d);
     }
 
     private AIMetrics emptyAiFor(String projectName, String lead) {
@@ -398,5 +406,12 @@ public class ExcelParser {
                 0.0d,
                 0.0d, 0.0d, 0.0d, 0.0d,
                 0.0d, 0.0d, 0.0d, 0.0d, 0.0d, 0.0d);
+    }
+
+    private BaselineMetrics emptyBaselineFor(String projectName, String lead) {
+        return new BaselineMetrics(projectName, lead,
+                0.0d, 0.0d, 0.0d, 0.0d,
+                0.0d, 0.0d, 0.0d, 0.0d,
+                0.0d, 0.0d, 0.0d, 0.0d, 0.0d);
     }
 }

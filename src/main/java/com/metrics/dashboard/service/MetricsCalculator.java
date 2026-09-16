@@ -72,11 +72,11 @@ public class MetricsCalculator {
         double reviewAfter = ai.reviewEffortAfterHours();
         double reviewReduction = reviewBefore == 0.0d ? 0.0d : ((reviewBefore - reviewAfter) / reviewBefore) * 100.0d;
 
-        double adoption = ValidationUtils.safeDivide(aiGenerated, baselineCases) * 100.0d;
-        double automation = ValidationUtils.safeDivide(ai.automationCandidates(), baselineCases) * 100.0d;
+        double adoption = ValidationUtils.safeDivide(aiGenerated, totalAfter > 0.0d ? totalAfter : baselineCases) * 100.0d;
+        double automation = ValidationUtils.safeDivide(ai.automationCandidates(), aiGenerated) * 100.0d;
         double coverage = ai.coveragePercentage() > 0.0d ? ai.coveragePercentage() : baseline.requirementCoveragePercent();
 
-        double baselineHoursForAiVolume = ValidationUtils.safeDivide(baseline.totalCoreHours(), baselineCases) * aiGenerated;
+        double baselineHoursForAiVolume = ValidationUtils.safeDivide(baseline.totalEffortHours(), baselineCases) * aiGenerated;
         double hoursSaved = Math.max(baselineHoursForAiVolume - ai.totalAiHours(), 0.0d);
         double costAvoidance = hoursSaved * Constants.QA_HOURLY_RATE;
 
@@ -152,12 +152,14 @@ public class MetricsCalculator {
         double totalBefore = projects.stream().mapToDouble(ProjectMetrics::totalTestsBefore).sum();
         double totalAfter = projects.stream().mapToDouble(ProjectMetrics::totalTestsGenerated).sum();
         double totalAi = projects.stream().mapToDouble(ProjectMetrics::aiGeneratedCount).sum();
-        double adoption = ValidationUtils.safeDivide(totalAi, totalBefore) * 100.0d;
+        double adoption = ValidationUtils.safeDivide(totalAi, totalAfter) * 100.0d;
         double overallGain = calculatePortfolioGain(projects);
         double hoursSaved = projects.stream().mapToDouble(ProjectMetrics::hoursSaved).sum();
         double costAvoidance = projects.stream().mapToDouble(ProjectMetrics::costAvoidance).sum();
-        double qualityImprovement = weightedAverage(projects, ProjectMetrics::qualityImprovement, ProjectMetrics::aiGeneratedCount);
-        double automationReadiness = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage, ProjectMetrics::totalTestsBefore);
+        double qualityImprovement = weightedAverage(projects, ProjectMetrics::qualityImprovement,
+                p -> p.totalTestsBefore() > 0.0d ? p.totalTestsBefore() : p.totalTestsGenerated());
+        double automationReadiness = weightedAverage(projects, ProjectMetrics::automationCandidatePercentage,
+                p -> p.aiGeneratedCount() > 0.0d ? p.aiGeneratedCount() : p.totalTestsGenerated());
         return new ExecutiveSummary(
                 ValidationUtils.round(totalProjects),
                 ValidationUtils.round(totalStories),
@@ -173,7 +175,8 @@ public class MetricsCalculator {
     }
 
     private GovernanceSummary createGovernanceSummary(List<ProjectMetrics> projects, ExecutiveSummary executiveSummary) {
-        double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage, ProjectMetrics::totalTestsBefore);
+        double coverage = weightedAverage(projects, ProjectMetrics::requirementCoverage,
+                p -> p.totalTestsGenerated() > 0.0d ? p.totalTestsGenerated() : p.aiGeneratedCount());
         double qualityScore = weightedAverage(projects,
                 p -> (p.requirementCoverage() + p.reviewEffortReduction() + p.qualityImprovement()) / 3.0d,
                 p -> p.aiGeneratedCount() > 0.0d ? p.aiGeneratedCount() : p.totalTestsBefore());
