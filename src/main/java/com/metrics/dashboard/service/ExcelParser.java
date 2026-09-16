@@ -36,12 +36,12 @@ public class ExcelParser {
         }
 
         try (InputStream inputStream = Files.newInputStream(inputPath); Workbook workbook = new XSSFWorkbook(inputStream)) {
-            Sheet beforeSheet = locateSheet(workbook, Constants.BEFORE_AI_SHEET_KEYWORD, 0);
-            Sheet afterSheet = locateSheet(workbook, Constants.AFTER_AI_SHEET_KEYWORD, 1);
+            Sheet beforeSheet = locateSheet(workbook, Constants.BEFORE_AI_SHEET_KEYWORD);
+            Sheet afterSheet = locateSheet(workbook, Constants.AFTER_AI_SHEET_KEYWORD);
 
             Map<String, BaselineMetrics> baselineByProject = parseBaselineSheet(beforeSheet);
             Map<String, AIMetrics> aiByProject = parseAiSheet(afterSheet);
-            Set<String> projectNames = new TreeSet<>(String.CASE_INSENSITIVE_ORDER);
+            Set<String> projectNames = new TreeSet<>();
             projectNames.addAll(baselineByProject.keySet());
             projectNames.addAll(aiByProject.keySet());
 
@@ -60,17 +60,14 @@ public class ExcelParser {
         }
     }
 
-    private Sheet locateSheet(Workbook workbook, String keyword, int fallbackIndex) {
+    private Sheet locateSheet(Workbook workbook, String keyword) {
         for (int index = 0; index < workbook.getNumberOfSheets(); index++) {
             Sheet sheet = workbook.getSheetAt(index);
             if (sheet.getSheetName().toLowerCase(Locale.ROOT).contains(keyword)) {
                 return sheet;
             }
         }
-        if (workbook.getNumberOfSheets() <= fallbackIndex) {
-            throw new ExcelParsingException("Workbook is missing expected sheets.");
-        }
-        return workbook.getSheetAt(fallbackIndex);
+        throw new ExcelParsingException("Workbook is missing a sheet containing keyword: " + keyword);
     }
 
     private Map<String, BaselineMetrics> parseBaselineSheet(Sheet sheet) {
@@ -96,7 +93,7 @@ public class ExcelParser {
                     ValidationUtils.round(firstMatching(numericValues, "defectsfoundfromtestcases")),
                     ValidationUtils.round(firstMatching(numericValues, "reviewhoursper100testcases", "reviewhoursper100cases")),
                     ValidationUtils.round(ValidationUtils.normalizePercentage(firstMatching(numericValues, "testcasesupdatedafterreview", "percenttestcasesupdatedafterreview", "reworkrate"))));
-            projects.put(projectName, metrics);
+            projects.put(normalizeProjectKey(projectName), metrics);
         }
         return projects;
     }
@@ -126,7 +123,7 @@ public class ExcelParser {
                     ValidationUtils.round(firstMatching(numericValues, "automationcandidatesidentified")),
                     ValidationUtils.round(firstMatching(numericValues, "reviewdefectsfoundintestcases")),
                     ValidationUtils.round(firstMatching(numericValues, "reviewtimepertestcase")));
-            projects.put(projectName, metrics);
+            projects.put(normalizeProjectKey(projectName), metrics);
         }
         return projects;
     }
@@ -212,5 +209,9 @@ public class ExcelParser {
             }
         }
         return true;
+    }
+
+    private String normalizeProjectKey(String projectName) {
+        return projectName == null ? "" : projectName.trim().toLowerCase(Locale.ROOT);
     }
 }

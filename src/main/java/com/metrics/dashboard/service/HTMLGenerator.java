@@ -30,7 +30,7 @@ public class HTMLGenerator {
         try {
             Template template = configuration.getTemplate("dashboard.ftl");
             Map<String, Object> templateModel = objectMapper.convertValue(dashboardData, new TypeReference<>() { });
-            templateModel.put("chartsJson", objectMapper.writeValueAsString(dashboardData.charts()).replace("<", "\\u003c"));
+            templateModel.put("chartsJson", toScriptSafeJson(dashboardData.charts()));
             if (outputPath.getParent() != null) {
                 Files.createDirectories(outputPath.getParent());
             }
@@ -40,5 +40,12 @@ public class HTMLGenerator {
         } catch (IOException | TemplateException exception) {
             throw new GenerationException("Failed to generate HTML dashboard at: " + outputPath, exception);
         }
+    }
+
+    private String toScriptSafeJson(Object value) throws IOException {
+        return objectMapper.writeValueAsString(value)
+                .replace("</", "<\\/")
+                .replace("\u2028", "\\u2028")
+                .replace("\u2029", "\\u2029");
     }
 }

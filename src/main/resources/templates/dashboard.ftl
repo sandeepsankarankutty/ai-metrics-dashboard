@@ -268,8 +268,9 @@
     </div>
 </div>
 
+<script id="chart-data" type="application/json">${chartsJson}</script>
 <script>
-const chartData = JSON.parse('${chartsJson?js_string}');
+const chartData = JSON.parse(document.getElementById('chart-data').textContent);
 
 function renderBarChart(canvasId, labels, values, options) {
     const canvas = document.getElementById(canvasId);
